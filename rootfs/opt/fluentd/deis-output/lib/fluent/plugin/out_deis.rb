@@ -22,8 +22,8 @@ module Fluent
 
     def initialize
       super
-      @logger_nsq = nil
-      @influx_nsq = nil
+      @logger_nsq ||= get_nsq_producer(@log_topic)
+      @influx_nsq ||= get_nsq_producer(@metric_topic)
       @log_topic = ENV['NSQ_LOG_TOPIC'] || "logs"
       @metric_topic = ENV['NSQ_METRIC_TOPIC'] || "metrics"
     end
@@ -41,12 +41,10 @@ module Fluent
     def emit(tag, es, chain)
       es.each do |time, record|
         if from_controller?(record) || deis_deployed_app?(record)
-          @logger_nsq ||= get_nsq_producer(@log_topic)
           push(@logger_nsq, record) if @logger_nsq
         end
 
         if from_router?(record)
-          @influx_nsq ||= get_nsq_producer(@metric_topic)
           begin
             data = build_series(record)
             if data
